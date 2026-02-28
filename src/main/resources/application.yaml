@@ -16,3 +16,10 @@ spring:
     #database username and password
     username: root
     password: root
+oomall:
+  core:
+    page-size:
+      max: 1000
+      default: 10
+  region:
+    timeout: 3600

@@ -1,0 +1,35 @@
+package com.longhe.learn.mymall.region.dao;
+
+import com.longhe.learn.mymall.core.mapper.RedisUtil;
+import com.longhe.learn.mymall.region.dao.bo.Region;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@SpringBootTest
+class RegionDaoTest {
+
+    private final static Logger logger = LoggerFactory.getLogger(RegionDaoTest.class);
+
+    @Autowired
+    private RegionDao regionDao;
+    @MockBean
+    private RedisUtil redisUtil;
+
+    @Test
+    void findById() {
+        Mockito.when(redisUtil.hasKey(Mockito.anyString())).thenReturn(false);
+        Mockito.when(redisUtil.get(Mockito.anyString())).thenReturn(null);
+        Mockito.when(redisUtil.set(Mockito.anyString(), Mockito.any(), Mockito.anyLong())).thenReturn(true);
+
+        Region region = regionDao.findById(0L);
+        assertNotNull(region);
+        logger.info(region.toString());
+    }
+}
