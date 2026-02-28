@@ -1,6 +1,13 @@
 spring:
   application:
     name: MyMall
+  data:
+    redis:
+      repositories:
+        #forbid redis to scan repositories
+        enabled: false
+      host: localhost
+      database: 0
   datasource:
     #JDBC drivers
     driver-class-name: com.mysql.cj.jdbc.Driver
