@@ -30,6 +30,8 @@ class RegionDaoTest {
 
         Region region = regionDao.findById(0L);
         assertNotNull(region);
-        logger.info(region.toString());
+        assertEquals(0L, region.getId());
+        assertEquals(-1L, region.getPid());
+        assertEquals("China", region.getName());
     }
 }
