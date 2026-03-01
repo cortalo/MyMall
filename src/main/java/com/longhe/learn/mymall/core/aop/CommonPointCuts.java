@@ -9,4 +9,8 @@ public class CommonPointCuts {
     @Pointcut("execution(public com.longhe.learn.mymall.core.model.ReturnObject com.longhe.learn.mymall..controller..*.*(..))")
     public void controllers() {
     }
+
+    @Pointcut("@annotation(com.longhe.learn.mymall.core.aop.Audit)")
+    public void auditAnnotation() {
+    }
 }
