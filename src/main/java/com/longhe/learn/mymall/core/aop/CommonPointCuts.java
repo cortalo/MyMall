@@ -10,6 +10,10 @@ public class CommonPointCuts {
     public void controllers() {
     }
 
+    @Pointcut("execution(public * com.longhe.learn.mymall..dao..*.*(..))")
+    public void daos(){
+    }
+
     @Pointcut("@annotation(com.longhe.learn.mymall.core.aop.Audit)")
     public void auditAnnotation() {
     }
