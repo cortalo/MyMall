@@ -38,13 +38,7 @@ class RegionServiceTest {
         Region region = new Region();
         region.setName("Beijing");
 
-        UserDto userDto = new UserDto();
-        userDto.setId(0L);
-        userDto.setName("0");
-        userDto.setUserLevel(0);
-        userDto.setDepartId(0L);
-
-        Region subRegions = regionService.createSubRegions(0L, region, userDto);
+        Region subRegions = regionService.createSubRegions(0L, region, UserDto.builder().id(0L).name("system").build());
         assertNotNull(subRegions);
         assertNotNull(subRegions.getId());
         assertTrue(subRegions.getId() > 0);

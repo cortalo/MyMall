@@ -42,4 +42,15 @@ public class RegionService {
         return parent.createSubRegion(region, user);
     }
 
+    /**
+     * 通过id查找地区
+     *
+     * @param id 地区id
+     * @return RegionDto
+     */
+    public Region findById(Long id) {
+        logger.debug("findRegionById: id = {}", id);
+        return this.regionDao.findById(id);
+    }
+
 }
