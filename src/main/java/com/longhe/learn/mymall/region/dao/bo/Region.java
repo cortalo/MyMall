@@ -16,10 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -253,5 +250,9 @@ public class Region extends OOMallObject implements Serializable {
         } else {
             throw new BusinessException(ReturnNo.REGION_ABANDONE, String.format(ReturnNo.REGION_ABANDONE.getMessage(), this.id));
         }
+    }
+
+    public List<Region> getAncestors() {
+        return this.regionDao.retrieveParentsRegions(this);
     }
 }

@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @Transactional
 public class RegionService {
@@ -53,4 +55,9 @@ public class RegionService {
         return this.regionDao.findById(id);
     }
 
+    public List<Region> retrieveParentsRegionsById(Long id) {
+        logger.debug("retrieveParentsRegionsById: id = {}", id);
+        Region region = this.regionDao.findById(id);
+        return region.getAncestors();
+    }
 }

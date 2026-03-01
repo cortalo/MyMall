@@ -16,7 +16,10 @@ import org.springframework.stereotype.Repository;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static com.longhe.learn.mymall.core.util.Common.cloneObj;
 
@@ -82,5 +85,20 @@ public class RegionDao {
         po = regionPoMapper.save(po);
         bo.setId(po.getId());
         return bo;
+    }
+
+    public List<Region> retrieveParentsRegions(Region region) {
+        String key = String.format(PARENT_KEY, region.getId());
+        List<Long> parentIds = (List<Long>) redisUtil.get(key);
+        if (null != parentIds) {
+            return parentIds.stream().map(this::findById).collect(Collectors.toList());
+        }
+        List<Region> regions = new ArrayList<>();
+        while (regions.size() < 10 && !Region.ROOT_PID.equals(region.getPid())) {
+            region = this.findById(region.getPid());
+            regions.add(region);
+        }
+        this.redisUtil.set(key, new ArrayList<>(regions.stream().map(Region::getId).collect(Collectors.toList())), timeout);
+        return regions;
     }
 }
