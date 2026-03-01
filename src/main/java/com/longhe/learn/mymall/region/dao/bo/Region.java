@@ -2,7 +2,10 @@ package com.longhe.learn.mymall.region.dao.bo;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.longhe.learn.mymall.core.exception.BusinessException;
 import com.longhe.learn.mymall.core.model.OOMallObject;
+import com.longhe.learn.mymall.core.model.ReturnNo;
+import com.longhe.learn.mymall.core.model.dto.UserDto;
 import com.longhe.learn.mymall.region.dao.RegionDao;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
@@ -238,5 +241,17 @@ public class Region extends OOMallObject implements Serializable {
     @Override
     public void setGmtModified(LocalDateTime gmtModified) {
         this.gmtModified = gmtModified;
+    }
+
+    public Region createSubRegion(Region region, UserDto user) {
+        if (VALID.equals(this.status) || SUSPENDED.equals(this.status)) {
+            region.setStatus(this.status);
+            region.setLevel((byte) (this.getLevel() + 1));
+            region.setPid(this.id);
+            logger.debug("createSubRegion: region = {}", region);
+            return this.regionDao.insert(region, user);
+        } else {
+            throw new BusinessException(ReturnNo.REGION_ABANDONE, String.format(ReturnNo.REGION_ABANDONE.getMessage(), this.id));
+        }
     }
 }

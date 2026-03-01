@@ -3,6 +3,7 @@ package com.longhe.learn.mymall.region.dao;
 import com.longhe.learn.mymall.core.exception.BusinessException;
 import com.longhe.learn.mymall.core.mapper.RedisUtil;
 import com.longhe.learn.mymall.core.model.ReturnNo;
+import com.longhe.learn.mymall.core.model.dto.UserDto;
 import com.longhe.learn.mymall.core.util.Common;
 import com.longhe.learn.mymall.region.dao.bo.Region;
 import com.longhe.learn.mymall.region.mapper.RegionPoMapper;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static com.longhe.learn.mymall.core.util.Common.cloneObj;
@@ -69,5 +71,16 @@ public class RegionDao {
                 throw new BusinessException(ReturnNo.RESOURCE_ID_NOTEXIST, String.format(ReturnNo.RESOURCE_ID_NOTEXIST.getMessage(), "地区", id));
             }
         }
+    }
+
+    public Region insert(Region bo, UserDto user) {
+        bo.setId(null);
+        bo.setCreator(user);
+        bo.setGmtCreate(LocalDateTime.now());
+        RegionPo po = cloneObj(bo, RegionPo.class);
+        logger.debug("save: po = {}", po);
+        po = regionPoMapper.save(po);
+        bo.setId(po.getId());
+        return bo;
     }
 }
