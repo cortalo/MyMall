@@ -60,4 +60,15 @@ public class RegionService {
         Region region = this.regionDao.findById(id);
         return region.getAncestors();
     }
+
+    /**
+     * abandon region by id, will abandon subRegions
+     * @param id region id
+     * @param user userDto
+     */
+    public void deleteRegion(Long id, UserDto user) {
+        Region region = this.regionDao.findById(id);
+        List<String> keys = region.abandon(user);
+        this.redisUtil.del(keys.toArray(new String[0]));
+    }
 }

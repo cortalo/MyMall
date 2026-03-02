@@ -17,6 +17,11 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.longhe.learn.mymall.core.model.Constants.MAX_RETURN;
+import static com.longhe.learn.mymall.core.model.Constants.PLATFORM;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -254,5 +259,43 @@ public class Region extends OOMallObject implements Serializable {
 
     public List<Region> getAncestors() {
         return this.regionDao.retrieveParentsRegions(this);
+    }
+
+    public List<String> abandon(UserDto user) {
+        return this.changeStatus(Region.ABANDONED, user);
+    }
+
+    private List<String> changeStatus(Byte status, UserDto user) {
+        if (!this.allowStatus(status)) {
+            throw new BusinessException(ReturnNo.STATENOTALLOW, String.format(ReturnNo.STATENOTALLOW.getMessage(), "地区", this.id, STATUSNAMES.get(this.status)));
+        }
+        Region region = new Region();
+        region.setStatus(status);
+        region.setId(this.id);
+        String key = this.regionDao.save(region, user);
+
+        List<Region> subRegions = this.getAllSubRegions(1, MAX_RETURN);
+        return Stream.concat(
+                Stream.of(key),
+                subRegions.stream().flatMap(subRegion -> {
+                    try {
+                        return subRegion.changeStatus(status, user).stream();
+                    } catch (BusinessException e) {
+                        if (ReturnNo.STATENOTALLOW.equals(e.getErrno())) {
+                            return Stream.empty();
+                        }
+                        throw e;
+                    }})
+        ).distinct().toList();
+    }
+
+    /**
+     * 获得所有的子地区
+     *
+     * @return bo对象list
+     */
+    @JsonIgnore
+    private List<Region> getAllSubRegions(Integer page, Integer pageSize) {
+        return this.regionDao.retrieveSubRegionsById(this.id, true, page, pageSize);
     }
 }

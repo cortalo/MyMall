@@ -12,6 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.io.Serializable;
@@ -21,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static com.longhe.learn.mymall.core.model.Constants.IDNOTEXIST;
 import static com.longhe.learn.mymall.core.util.Common.cloneObj;
 
 @Repository
@@ -100,5 +103,33 @@ public class RegionDao {
         }
         this.redisUtil.set(key, new ArrayList<>(regions.stream().map(Region::getId).collect(Collectors.toList())), timeout);
         return regions;
+    }
+
+    public String save(Region bo, UserDto user) {
+        bo.setModifier(user);
+        bo.setGmtModified(LocalDateTime.now());
+        RegionPo po = cloneObj(bo, RegionPo.class);
+        RegionPo updatePo = regionPoMapper.save(po);
+        if (IDNOTEXIST.equals(updatePo.getId())) {
+            throw new BusinessException(ReturnNo.RESOURCE_ID_NOTEXIST, String.format(ReturnNo.RESOURCE_ID_NOTEXIST.getMessage(), "地区", bo.getId()));
+        }
+        return String.format(KEY, bo.getId());
+    }
+
+    public List<Region> retrieveSubRegionsById(Long pid, Boolean all, Integer page, Integer pageSize) {
+        if (null == pid) {
+            throw new IllegalArgumentException("pid can not be null");
+        }
+
+        Pageable pageable = PageRequest.of(page - 1, pageSize);
+        List<RegionPo> poPage;
+        if (all) {
+            poPage = this.regionPoMapper.findByPid(pid, pageable);
+        } else {
+            poPage = this.regionPoMapper.findByPidEqualsAndStatusEquals(pid, Region.VALID, pageable);
+        }
+        return poPage.stream()
+                .map(po -> this.build(po, Optional.ofNullable(null)))
+                .collect(Collectors.toList());
     }
 }

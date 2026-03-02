@@ -30,6 +30,7 @@ class AdminRegionControllerTest {
     private static String adminToken;
     private static String wrongToken;
     private final String ADMIN_SUB_REGIONS = "/shops/{did}/regions/{id}/subregions";
+    private final String ADMIN_REGIONS_ID = "/shops/{did}/regions/{id}";
 
     @BeforeAll
     static void setUp() {
@@ -115,5 +116,33 @@ class AdminRegionControllerTest {
                         .content(body))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.errno", is(ReturnNo.FIELD_NOTVALID.getErrNo())));
+    }
+
+    @Test
+    void deleteRegionById() throws Exception {
+        Mockito.when(redisUtil.hasKey(Mockito.anyString())).thenReturn(false);
+        Mockito.when(redisUtil.get(Mockito.anyString())).thenReturn(null);
+        Mockito.when(redisUtil.set(Mockito.anyString(), Mockito.any(), Mockito.anyLong())).thenReturn(true);
+        Mockito.doNothing().when(redisUtil).del(Mockito.any());
+
+        this.mockMvc.perform(MockMvcRequestBuilders.delete(ADMIN_REGIONS_ID, 0, 0)
+                        .header("authorization", adminToken)
+                        .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.errno", is(ReturnNo.OK.getErrNo())));
+    }
+
+    @Test
+    void deleteRegionByIdGivenNotPlatform() throws Exception {
+        Mockito.when(redisUtil.hasKey(Mockito.anyString())).thenReturn(false);
+        Mockito.when(redisUtil.get(Mockito.anyString())).thenReturn(null);
+        Mockito.when(redisUtil.set(Mockito.anyString(), Mockito.any(), Mockito.anyLong())).thenReturn(true);
+        Mockito.doNothing().when(redisUtil).del(Mockito.any());
+
+        this.mockMvc.perform(MockMvcRequestBuilders.delete(ADMIN_REGIONS_ID, 1, 0)
+                        .header("authorization", adminToken)
+                        .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(MockMvcResultMatchers.status().isForbidden())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.errno", is(ReturnNo.RESOURCE_ID_OUTSCOPE.getErrNo())));
     }
 }

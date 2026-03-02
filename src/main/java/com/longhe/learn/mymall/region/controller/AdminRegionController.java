@@ -49,4 +49,14 @@ public class AdminRegionController {
         return new ReturnObject(ReturnNo.CREATED, dto);
     }
 
+    @DeleteMapping("/regions/{id}")
+    @Audit(departName = "shops")
+    public ReturnObject deleteRegionById(@PathVariable Long did, @PathVariable Long id, @LoginUser UserDto user) {
+        if (!PLATFORM.equals(did)) {
+            throw new BusinessException(ReturnNo.RESOURCE_ID_OUTSCOPE, String.format(ReturnNo.RESOURCE_ID_OUTSCOPE.getMessage(), "地区", id, did));
+        }
+        this.regionService.deleteRegion(id, user);
+        return new ReturnObject(ReturnNo.OK);
+    }
+
 }
