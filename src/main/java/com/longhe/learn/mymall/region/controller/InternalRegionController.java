@@ -1,7 +1,7 @@
 package com.longhe.learn.mymall.region.controller;
 
+import com.longhe.learn.mymall.core.model.IdNameTypeVo;
 import com.longhe.learn.mymall.core.model.ReturnObject;
-import com.longhe.learn.mymall.core.model.dto.IdNameTypeDto;
 import com.longhe.learn.mymall.region.dao.bo.Region;
 import com.longhe.learn.mymall.region.service.RegionService;
 import org.slf4j.Logger;
@@ -33,7 +33,7 @@ public class InternalRegionController {
     public ReturnObject getParentsRegions(@PathVariable Long id) {
         List<Region> ancestors = this.regionService.retrieveParentsRegionsById(id);
         return new ReturnObject(
-                ancestors.stream().map(o -> IdNameTypeDto.builder().id(o.getId()).name(o.getName()).build())
+                ancestors.stream().map(o -> IdNameTypeVo.builder().id(o.getId()).name(o.getName()).build())
                         .collect(Collectors.toList())
         );
     }

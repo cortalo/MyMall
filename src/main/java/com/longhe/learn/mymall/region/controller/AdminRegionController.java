@@ -3,10 +3,10 @@ package com.longhe.learn.mymall.region.controller;
 import com.longhe.learn.mymall.core.aop.Audit;
 import com.longhe.learn.mymall.core.aop.LoginUser;
 import com.longhe.learn.mymall.core.exception.BusinessException;
+import com.longhe.learn.mymall.core.model.IdNameTypeVo;
 import com.longhe.learn.mymall.core.model.ReturnNo;
 import com.longhe.learn.mymall.core.model.ReturnObject;
-import com.longhe.learn.mymall.core.model.dto.IdNameTypeDto;
-import com.longhe.learn.mymall.core.model.dto.UserDto;
+import com.longhe.learn.mymall.core.model.UserToken;
 import com.longhe.learn.mymall.core.validation.NewGroup;
 import com.longhe.learn.mymall.region.controller.vo.RegionVo;
 import com.longhe.learn.mymall.region.dao.bo.Region;
@@ -38,20 +38,20 @@ public class AdminRegionController {
 
     @PostMapping("/regions/{id}/subregions")
     @Audit(departName = "shops")
-    public ReturnObject createSubRegions(@PathVariable Long did, @PathVariable Long id, @LoginUser UserDto user,
+    public ReturnObject createSubRegions(@PathVariable Long did, @PathVariable Long id, @LoginUser UserToken user,
                                          @Validated(NewGroup.class) @RequestBody RegionVo vo) {
         if (!PLATFORM.equals(did)) {
             throw new BusinessException(ReturnNo.RESOURCE_ID_OUTSCOPE, String.format(ReturnNo.RESOURCE_ID_OUTSCOPE.getMessage(), "地区", id, did));
         }
         Region region = cloneObj(vo, Region.class);
         Region newRegion = this.regionService.createSubRegions(id, region, user);
-        IdNameTypeDto dto = IdNameTypeDto.builder().id(newRegion.getId()).name(newRegion.getName()).build();
+        IdNameTypeVo dto = IdNameTypeVo.builder().id(newRegion.getId()).name(newRegion.getName()).build();
         return new ReturnObject(ReturnNo.CREATED, dto);
     }
 
     @DeleteMapping("/regions/{id}")
     @Audit(departName = "shops")
-    public ReturnObject deleteRegionById(@PathVariable Long did, @PathVariable Long id, @LoginUser UserDto user) {
+    public ReturnObject deleteRegionById(@PathVariable Long did, @PathVariable Long id, @LoginUser UserToken user) {
         if (!PLATFORM.equals(did)) {
             throw new BusinessException(ReturnNo.RESOURCE_ID_OUTSCOPE, String.format(ReturnNo.RESOURCE_ID_OUTSCOPE.getMessage(), "地区", id, did));
         }

@@ -1,7 +1,7 @@
 package com.longhe.learn.mymall.region.controller.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.longhe.learn.mymall.core.model.dto.IdNameTypeDto;
+import com.longhe.learn.mymall.core.model.IdNameTypeVo;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -23,8 +23,8 @@ public class RegionDto {
     private String areaCode;
     private String zipCode;
     private String cityCode;
-    private IdNameTypeDto creator;
+    private IdNameTypeVo creator;
     private LocalDateTime gmtCreate;
     private LocalDateTime gmtModified;
-    private IdNameTypeDto modifier;
+    private IdNameTypeVo modifier;
 }

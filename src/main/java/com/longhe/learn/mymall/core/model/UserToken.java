@@ -1,27 +1,38 @@
 package com.longhe.learn.mymall.core.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.ToString;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.*;
 
+import java.io.Serializable;
 import java.util.Date;
 
-@Getter
-@AllArgsConstructor
-@ToString
 /**
- * 用户token
+ * 简单用户
  */
-public class UserToken {
-    private Long userId;
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class UserToken implements Serializable {
+
+    public UserToken(Long id, String name, Long departId, Integer userLevel) {
+        this.id = id;
+        this.name = name;
+        this.departId = departId;
+        this.userLevel = userLevel;
+    }
+
+    private Long id;
     /**
      * 用户名
      */
-    private String userName;
+    private String name;
     /**
      * 部门id
      */
     private Long departId;
+
     /**
      * 过期时间
      */
@@ -31,7 +42,4 @@ public class UserToken {
      */
     private Integer userLevel;
 
-    public void setDepartId(Long departId) {
-        this.departId = departId;
-    }
 }

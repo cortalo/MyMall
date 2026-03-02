@@ -1,7 +1,7 @@
 package com.longhe.learn.mymall.region.service;
 
 import com.longhe.learn.mymall.core.mapper.RedisUtil;
-import com.longhe.learn.mymall.core.model.dto.UserDto;
+import com.longhe.learn.mymall.core.model.UserToken;
 import com.longhe.learn.mymall.region.dao.RegionDao;
 import com.longhe.learn.mymall.region.dao.bo.Region;
 import org.junit.jupiter.api.Test;
@@ -38,7 +38,7 @@ class RegionServiceTest {
         Region region = new Region();
         region.setName("Beijing");
 
-        Region subRegions = regionService.createSubRegions(0L, region, UserDto.builder().id(0L).name("system").build());
+        Region subRegions = regionService.createSubRegions(0L, region, UserToken.builder().id(0L).name("system").build());
         assertNotNull(subRegions);
         assertNotNull(subRegions.getId());
         assertTrue(subRegions.getId() > 0);

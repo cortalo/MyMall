@@ -1,7 +1,6 @@
 package com.longhe.learn.mymall.core.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.longhe.learn.mymall.core.model.dto.UserDto;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -64,12 +63,12 @@ public abstract class OOMallObject implements Cloneable{
         this.gmtModified = gmtModified;
     }
 
-    public  void setCreator(UserDto user){
+    public  void setCreator(UserToken user){
         this.creatorId = user.getId();
         this.creatorName  = user.getName();
     }
 
-    public  void setModifier(UserDto user){
+    public  void setModifier(UserToken user){
         this.modifierId = user.getId();
         this.modifierName  = user.getName();
     }

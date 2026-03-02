@@ -3,7 +3,7 @@ package com.longhe.learn.mymall.region.dao;
 import com.longhe.learn.mymall.core.exception.BusinessException;
 import com.longhe.learn.mymall.core.mapper.RedisUtil;
 import com.longhe.learn.mymall.core.model.ReturnNo;
-import com.longhe.learn.mymall.core.model.dto.UserDto;
+import com.longhe.learn.mymall.core.model.UserToken;
 import com.longhe.learn.mymall.core.util.Common;
 import com.longhe.learn.mymall.region.dao.bo.Region;
 import com.longhe.learn.mymall.region.mapper.RegionPoMapper;
@@ -79,7 +79,7 @@ public class RegionDao {
         }
     }
 
-    public Region insert(Region bo, UserDto user) {
+    public Region insert(Region bo, UserToken user) {
         bo.setId(null);
         bo.setCreator(user);
         bo.setGmtCreate(LocalDateTime.now());
@@ -105,7 +105,7 @@ public class RegionDao {
         return regions;
     }
 
-    public String save(Region bo, UserDto user) {
+    public String save(Region bo, UserToken user) {
         bo.setModifier(user);
         bo.setGmtModified(LocalDateTime.now());
         RegionPo po = cloneObj(bo, RegionPo.class);

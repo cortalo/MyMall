@@ -1,4 +1,4 @@
-package com.longhe.learn.mymall.core.model.dto;
+package com.longhe.learn.mymall.core.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
@@ -6,12 +6,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * 用于返回id, name和type的视图对象
+ */
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class IdNameTypeDto {
+public class IdNameTypeVo {
     private Long id;
     private String name;
     private Byte type;

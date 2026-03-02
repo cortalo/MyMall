@@ -1,7 +1,6 @@
 package com.longhe.learn.mymall.core.model;
 
 
-import com.longhe.learn.mymall.core.model.dto.UserDto;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -46,5 +45,5 @@ public interface Constants {
     /**
      * 系统用户
      */
-    public static final UserDto SYSTEM = UserDto.builder().id(0L).name("system").build();
+    public static final UserToken SYSTEM = UserToken.builder().id(0L).name("system").build();
 }

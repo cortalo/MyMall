@@ -1,7 +1,7 @@
 package com.longhe.learn.mymall.region.service;
 
 import com.longhe.learn.mymall.core.mapper.RedisUtil;
-import com.longhe.learn.mymall.core.model.dto.UserDto;
+import com.longhe.learn.mymall.core.model.UserToken;
 import com.longhe.learn.mymall.region.dao.RegionDao;
 import com.longhe.learn.mymall.region.dao.bo.Region;
 import org.slf4j.Logger;
@@ -39,7 +39,7 @@ public class RegionService {
      * @param user 登录用户
      * @return 新region对象，带id
      */
-    public Region createSubRegions(Long id, Region region, UserDto user) {
+    public Region createSubRegions(Long id, Region region, UserToken user) {
         Region parent = this.regionDao.findById(id);
         return parent.createSubRegion(region, user);
     }
@@ -64,9 +64,9 @@ public class RegionService {
     /**
      * abandon region by id, will abandon subRegions
      * @param id region id
-     * @param user userDto
+     * @param user userToken
      */
-    public void deleteRegion(Long id, UserDto user) {
+    public void deleteRegion(Long id, UserToken user) {
         Region region = this.regionDao.findById(id);
         List<String> keys = region.abandon(user);
         this.redisUtil.del(keys.toArray(new String[0]));

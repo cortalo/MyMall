@@ -3,16 +3,14 @@ package com.longhe.learn.mymall.core.aop;
 import com.longhe.learn.mymall.core.exception.BusinessException;
 import com.longhe.learn.mymall.core.model.ReturnNo;
 import com.longhe.learn.mymall.core.model.UserToken;
-import com.longhe.learn.mymall.core.model.dto.UserDto;
 import com.longhe.learn.mymall.core.util.JwtHelper;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -20,6 +18,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.util.Objects;
 
 /**
  * @auther mingqiu
@@ -30,9 +29,8 @@ import java.lang.reflect.Method;
 @Aspect
 @Component
 @Order(20)
+@Slf4j
 public class AuditAspect {
-
-    private final Logger logger = LoggerFactory.getLogger(AuditAspect.class);
 
     /**
      * @Audit的Around Advice
@@ -77,21 +75,21 @@ public class AuditAspect {
     private void checkDepartId(HttpServletRequest request, Method method, UserToken decryptToken) throws BusinessException {
         //检验/shop的api中传入token是否和departId一致
         String pathInfo = request.getRequestURI();
-        logger.debug("checkDepartId : the api path is {}", pathInfo);
-        if(null ==pathInfo) {
-            logger.info("checkDepartId : the api path is null");
+        log.debug("checkDepartId : the api path is {}", pathInfo);
+        if(Objects.isNull(pathInfo)) {
+            log.info("checkDepartId : the api path is null");
             throw new BusinessException(ReturnNo.RESOURCE_ID_NOTEXIST);
         }
 
         String departName=null;
-        Audit AuditAnnotation = method.getAnnotation(Audit.class);
-        if(AuditAnnotation!=null){
-            departName = ((Audit) AuditAnnotation).departName();
+        Audit auditAnnotation = method.getAnnotation(Audit.class);
+        if(Objects.nonNull(auditAnnotation)){
+            departName = ((Audit) auditAnnotation).departName();
         }
 
         boolean flag=false;
         if(!"".equals(departName)) {
-            logger.debug("checkDepartId: getPathInfo = {}", pathInfo);
+            log.debug("checkDepartId: getPathInfo = {}", pathInfo);
             String paths[] = pathInfo.split("/");
             for (int i = 0; i < paths.length; i++) {
                 //如果departId为0,可以操作所有的depart
@@ -103,13 +101,13 @@ public class AuditAspect {
                     if (i + 1 < paths.length) {
                         //找到路径上对应id 将其与string类型的departId比较
                         String pathId = paths[i + 1];
-                        logger.debug("checkDepartId : did = {}" , pathId);
+                        log.debug("checkDepartId : did = {}" , pathId);
                         if (!pathId.equals(decryptToken.getDepartId().toString())) {
-                            logger.info("checkDepartId : 不匹配departId = {}", decryptToken.getDepartId());
+                            log.info("checkDepartId : 不匹配departId = {}", decryptToken.getDepartId());
                             throw new BusinessException(ReturnNo.RESOURCE_ID_OUTSCOPE);
                         } else {
                             flag = true;
-                            logger.debug("checkDepartId : success match Id!");
+                            log.debug("checkDepartId : success match Id!");
                         }
                     }
                     else {
@@ -118,8 +116,8 @@ public class AuditAspect {
                     }
                 }
             }
-            if (flag == false) {
-                logger.info("checkDepartId : 不匹配departId = {}", decryptToken.getDepartId());
+            if (!flag) {
+                log.info("checkDepartId : 不匹配departId = {}", decryptToken.getDepartId());
                 throw new BusinessException(ReturnNo.RESOURCE_ID_OUTSCOPE);
             }
         }
@@ -145,12 +143,15 @@ public class AuditAspect {
                 //这里判断当前注解是否为LoginUser.class
                 if (annotation.annotationType().equals(LoginUser.class)) {
                     //校验该参数，验证一次退出该注解
-                    UserDto user = new UserDto();
-                    user.setName(token.getUserName());
-                    user.setId(token.getUserId());
+                    UserToken user = new UserToken();
+                    user.setName(token.getName());
+                    user.setId(token.getId());
                     user.setUserLevel(token.getUserLevel());
                     user.setDepartId(token.getDepartId());
                     args[i] = user;
+                    log.debug("putMethodParameter: token = {}, user = {}",token,user);
+                } else if (annotation.annotationType().equals(UserLevel.class)) {
+                    args[i] = token.getUserLevel();
                 }
             }
         }
@@ -164,23 +165,23 @@ public class AuditAspect {
      */
     private UserToken decryptToken(String tokenString)  throws BusinessException{
 
-        if (null == tokenString){
-            logger.info("decryptToken : no token..");
+        if (Objects.isNull(tokenString)){
+            log.debug("decryptToken : no token..");
             throw new BusinessException(ReturnNo.AUTH_NEED_LOGIN);
         }
 
         UserToken token = new JwtHelper().verifyTokenAndGetClaims(tokenString);
 
-        if (null == token) {
-            logger.info("decryptToken : invalid token..");
+        if (Objects.isNull(token)) {
+            log.debug("decryptToken : invalid token..");
             throw new BusinessException(ReturnNo.AUTH_INVALID_JWT);
         }
 
-        if (null == token.getUserId()) {
-            logger.info("decryptToken : userId is null");
+        if (Objects.isNull(token.getId())) {
+            log.debug("decryptToken : userId is null");
             throw new BusinessException(ReturnNo.AUTH_NEED_LOGIN);
         }
-        logger.debug("decryptToken : token = {}", token);
+        log.debug("decryptToken : token = {}", token);
         return  token;
     }
 }

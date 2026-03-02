@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.longhe.learn.mymall.core.exception.BusinessException;
 import com.longhe.learn.mymall.core.model.OOMallObject;
 import com.longhe.learn.mymall.core.model.ReturnNo;
-import com.longhe.learn.mymall.core.model.dto.UserDto;
+import com.longhe.learn.mymall.core.model.UserToken;
 import com.longhe.learn.mymall.region.dao.RegionDao;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
@@ -245,7 +245,7 @@ public class Region extends OOMallObject implements Serializable {
         this.gmtModified = gmtModified;
     }
 
-    public Region createSubRegion(Region region, UserDto user) {
+    public Region createSubRegion(Region region, UserToken user) {
         if (VALID.equals(this.status) || SUSPENDED.equals(this.status)) {
             region.setStatus(this.status);
             region.setLevel((byte) (this.getLevel() + 1));
@@ -261,11 +261,11 @@ public class Region extends OOMallObject implements Serializable {
         return this.regionDao.retrieveParentsRegions(this);
     }
 
-    public List<String> abandon(UserDto user) {
+    public List<String> abandon(UserToken user) {
         return this.changeStatus(Region.ABANDONED, user);
     }
 
-    private List<String> changeStatus(Byte status, UserDto user) {
+    private List<String> changeStatus(Byte status, UserToken user) {
         if (!this.allowStatus(status)) {
             throw new BusinessException(ReturnNo.STATENOTALLOW, String.format(ReturnNo.STATENOTALLOW.getMessage(), "地区", this.id, STATUSNAMES.get(this.status)));
         }
