@@ -7,7 +7,9 @@ import com.longhe.learn.javaee.core.model.IdNameTypeVo;
 import com.longhe.learn.javaee.core.model.ReturnNo;
 import com.longhe.learn.javaee.core.model.ReturnObject;
 import com.longhe.learn.javaee.core.model.UserToken;
+import com.longhe.learn.javaee.core.util.CloneFactory;
 import com.longhe.learn.javaee.core.validation.NewGroup;
+import com.longhe.learn.oomall.region.controller.dto.RegionDto;
 import com.longhe.learn.oomall.region.controller.vo.RegionVo;
 import com.longhe.learn.oomall.region.dao.bo.Region;
 import com.longhe.learn.oomall.region.service.RegionService;
@@ -19,7 +21,6 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import static com.longhe.learn.javaee.core.model.Constants.PLATFORM;
-import static com.longhe.learn.javaee.core.util.Common.cloneObj;
 
 
 /**
@@ -39,14 +40,14 @@ public class AdminRegionController {
     @PostMapping("/regions/{id}/subregions")
     @Audit(departName = "shops")
     public ReturnObject createSubRegions(@PathVariable Long did, @PathVariable Long id, @LoginUser UserToken user,
-                                         @Validated(NewGroup.class) @RequestBody RegionVo vo) {
+                                         @Validated(NewGroup.class) @RequestBody RegionDto dto) {
         if (!PLATFORM.equals(did)) {
             throw new BusinessException(ReturnNo.RESOURCE_ID_OUTSCOPE, String.format(ReturnNo.RESOURCE_ID_OUTSCOPE.getMessage(), "地区", id, did));
         }
-        Region region = cloneObj(vo, Region.class);
+        Region region = CloneFactory.copy(new Region(), dto);
         Region newRegion = this.regionService.createSubRegions(id, region, user);
-        IdNameTypeVo dto = IdNameTypeVo.builder().id(newRegion.getId()).name(newRegion.getName()).build();
-        return new ReturnObject(ReturnNo.CREATED, dto);
+        IdNameTypeVo vo = IdNameTypeVo.builder().id(newRegion.getId()).name(newRegion.getName()).build();
+        return new ReturnObject(ReturnNo.CREATED, vo);
     }
 
     @DeleteMapping("/regions/{id}")

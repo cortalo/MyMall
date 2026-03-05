@@ -4,6 +4,7 @@ import com.longhe.learn.javaee.core.exception.BusinessException;
 import com.longhe.learn.javaee.core.mapper.RedisUtil;
 import com.longhe.learn.javaee.core.model.ReturnNo;
 import com.longhe.learn.javaee.core.model.UserToken;
+import com.longhe.learn.javaee.core.util.CloneFactory;
 import com.longhe.learn.javaee.core.util.Common;
 import com.longhe.learn.oomall.region.dao.bo.Region;
 import com.longhe.learn.oomall.region.mapper.RegionPoMapper;
@@ -24,7 +25,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.longhe.learn.javaee.core.model.Constants.IDNOTEXIST;
-import static com.longhe.learn.javaee.core.util.Common.cloneObj;
 
 @Repository
 public class RegionDao {
@@ -51,7 +51,7 @@ public class RegionDao {
     }
 
     public Region build(RegionPo po, Optional<String> redisKey) {
-        Region bo = cloneObj(po, Region.class);
+        Region bo = CloneFactory.copy(new Region(), po);
         this.build(bo);
         redisKey.ifPresent(key -> redisUtil.set(key, bo, timeout));
         return bo;
@@ -83,7 +83,7 @@ public class RegionDao {
         bo.setId(null);
         bo.setCreator(user);
         bo.setGmtCreate(LocalDateTime.now());
-        RegionPo po = cloneObj(bo, RegionPo.class);
+        RegionPo po = CloneFactory.copy(new RegionPo(), bo);
         logger.debug("save: po = {}", po);
         po = regionPoMapper.save(po);
         bo.setId(po.getId());
@@ -108,7 +108,7 @@ public class RegionDao {
     public String save(Region bo, UserToken user) {
         bo.setModifier(user);
         bo.setGmtModified(LocalDateTime.now());
-        RegionPo po = cloneObj(bo, RegionPo.class);
+        RegionPo po = CloneFactory.copy(new RegionPo(), bo);
         RegionPo updatePo = regionPoMapper.save(po);
         if (IDNOTEXIST.equals(updatePo.getId())) {
             throw new BusinessException(ReturnNo.RESOURCE_ID_NOTEXIST, String.format(ReturnNo.RESOURCE_ID_NOTEXIST.getMessage(), "地区", bo.getId()));

@@ -2,11 +2,14 @@ package com.longhe.learn.oomall.region.dao.bo;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.longhe.learn.javaee.core.copyfrom.CopyFrom;
+import com.longhe.learn.javaee.core.copyfrom.CopyTo;
 import com.longhe.learn.javaee.core.exception.BusinessException;
 import com.longhe.learn.javaee.core.model.OOMallObject;
 import com.longhe.learn.javaee.core.model.ReturnNo;
 import com.longhe.learn.javaee.core.model.UserToken;
 import com.longhe.learn.oomall.region.dao.RegionDao;
+import com.longhe.learn.oomall.region.mapper.po.RegionPo;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -27,6 +30,8 @@ import static com.longhe.learn.javaee.core.model.Constants.PLATFORM;
 @AllArgsConstructor
 @ToString(callSuper = true, doNotUseGetters = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@CopyFrom(RegionPo.class)
+@CopyTo(RegionPo.class)
 public class Region extends OOMallObject implements Serializable {
 
     @ToString.Exclude
