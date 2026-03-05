@@ -64,6 +64,7 @@
 
     <!-- 日志输出级别 -->
     <logger name="com.longhe.learn.oomall" level = "INFO"/>
+    <logger name="com.longhe.learn.oomall.payment" level = "DEBUG"/>
     <root level="INFO">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE" />

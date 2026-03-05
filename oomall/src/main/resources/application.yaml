@@ -23,3 +23,6 @@ oomall:
       default: 10
   region:
     timeout: 3600
+  payment:
+    account:
+      timeout: 3600
