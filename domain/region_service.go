@@ -1,6 +1,6 @@
 package domain
 
-type UserService interface {
+type RegionService interface {
 	FindById(id int64) (*Region, error)
 }
 
@@ -8,14 +8,14 @@ type RegionRepo interface {
 	FindById(id int64) (*Region, error)
 }
 
-type userService struct {
+type regionService struct {
 	repo RegionRepo
 }
 
-func NewUserService(repo RegionRepo) UserService {
-	return &userService{repo: repo}
+func NewUserService(repo RegionRepo) RegionService {
+	return &regionService{repo: repo}
 }
 
-func (s *userService) FindById(id int64) (*Region, error) {
+func (s *regionService) FindById(id int64) (*Region, error) {
 	return s.repo.FindById(id)
 }

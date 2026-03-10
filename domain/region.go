@@ -1,14 +1,17 @@
 package domain
 
-import "time"
+import (
+	"MyMall/domain/shared"
+	"time"
+)
 
-//// Region status
-//const (
-//	RegionStatusValid     int8 = 0
-//	RegionStatusSuspended int8 = 1
-//	RegionStatusAbandoned int8 = 2
-//)
-//
+// Region status
+const (
+	RegionStatusValid     int8 = 0
+	RegionStatusSuspended int8 = 1
+	RegionStatusAbandoned int8 = 2
+)
+
 //// Region tree node special IDs
 //const (
 //	RegionTopID   int64 = 0
@@ -39,4 +42,16 @@ type Region struct {
 
 func (o *Region) abandon() error {
 	return nil
+}
+
+func (o *Region) createSubRegion(region *Region, operator shared.Operator) (*Region, error) {
+	if !(RegionStatusValid == o.Status || RegionStatusSuspended == o.Status) {
+		return nil, ErrRegionAbandoned
+	}
+	region.Status = o.Status
+	region.Level = o.Level + 1
+	region.Pid = o.Id
+	region.CreatorId = operator.Id
+	region.CreatorName = operator.Username
+	return region, nil
 }
