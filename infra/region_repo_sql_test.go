@@ -69,7 +69,7 @@ func TestRegionRepoSQL_FindById(t *testing.T) {
 	repo := infra.NewRegionRepoSQL(db)
 	region, err := repo.FindById(insertedId)
 	require.NoError(t, err)
-	require.Equal(t, insertedId, region.Id)
+	require.Equal(t, insertedId, region.ID)
 	require.Equal(t, "China", region.Name)
 
 }

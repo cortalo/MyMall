@@ -1,29 +1,33 @@
 package domain
 
-import "time"
+import (
+	"MyMall/domain/shared"
+	"slices"
+	"time"
+)
 
-//// Region status
-//const (
-//	RegionStatusValid     int8 = 0
-//	RegionStatusSuspended int8 = 1
-//	RegionStatusAbandoned int8 = 2
-//)
-//
-//// Region tree node special IDs
-//const (
-//	RegionTopID   int64 = 0
-//	RegionRootPID int64 = -1
-//)
+type RegionStatus int8
+
+const (
+	RegionStatusValid RegionStatus = iota
+	RegionStatusSuspended
+	RegionStatusAbandoned
+)
+
+var regionAllowedTransitions = map[RegionStatus][]RegionStatus{
+	RegionStatusValid:     {RegionStatusSuspended, RegionStatusAbandoned},
+	RegionStatusSuspended: {RegionStatusValid, RegionStatusAbandoned},
+}
 
 type Region struct {
-	Id           int64
-	CreatorId    int64
+	ID           int64
+	CreatorID    int64
 	CreatorName  string
-	ModifierId   int64
+	ModifierID   int64
 	ModifierName string
-	GmtCreate    time.Time
-	GmtModified  time.Time
-	Pid          int64
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	ParentID     int64
 	Level        int8
 	AreaCode     string
 	ZipCode      string
@@ -34,9 +38,35 @@ type Region struct {
 	Pinyin       string
 	Lng          float64
 	Lat          float64
-	Status       int8
+	Status       RegionStatus
 }
 
-func (o *Region) abandon() error {
+func (r *Region) abandon() error {
 	return nil
+}
+
+func (r *Region) createSubRegion(region *Region, operator shared.Operator) (*Region, error) {
+	if !(r.Status == RegionStatusValid || r.Status == RegionStatusSuspended) {
+		return nil, ErrRegionAbandoned
+	}
+	region.Status = r.Status
+	region.Level = r.Level + 1
+	region.ParentID = r.ID
+	region.CreatorID = operator.ID
+	region.CreatorName = operator.Username
+	return region, nil
+}
+
+func (r *Region) allowTransitionTo(status RegionStatus) bool {
+	return slices.Contains(regionAllowedTransitions[r.Status], status)
+}
+
+func (r *Region) changeStatus(status RegionStatus, operator shared.Operator) (*Region, error) {
+	if !r.allowTransitionTo(status) {
+		return nil, ErrRegionNotAllowedStatus
+	}
+	r.Status = status
+	r.ModifierID = operator.ID
+	r.ModifierName = operator.Username
+	return r, nil
 }

@@ -18,7 +18,7 @@ func TestUserService_FindById(t *testing.T) {
 	repo := &mockRegionRepo{
 		findById: func(id int64) (*Region, error) {
 			return &Region{
-				Id:   id,
+				ID:   id,
 				Name: "China",
 			}, nil
 		},
@@ -26,6 +26,6 @@ func TestUserService_FindById(t *testing.T) {
 	userService := NewUserService(repo)
 	result, err := userService.FindById(1)
 	require.NoError(t, err)
-	require.Equal(t, int64(1), result.Id)
+	require.Equal(t, int64(1), result.ID)
 	require.Equal(t, "China", result.Name)
 }

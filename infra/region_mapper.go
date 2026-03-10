@@ -5,8 +5,8 @@ import "MyMall/domain"
 
 func toDomain(po *RegionPo) *domain.Region {
 	return &domain.Region{
-		Id:           po.Id,
-		Pid:          po.Pid,
+		ID:           po.Id,
+		ParentID:     po.Pid,
 		Level:        po.Level,
 		AreaCode:     po.AreaCode,
 		ZipCode:      po.ZipCode,
@@ -18,19 +18,19 @@ func toDomain(po *RegionPo) *domain.Region {
 		Lng:          po.Lng,
 		Lat:          po.Lat,
 		Status:       po.Status,
-		CreatorId:    po.CreatorId,
+		CreatorID:    po.CreatorId,
 		CreatorName:  po.CreatorName,
-		ModifierId:   po.ModifierId,
+		ModifierID:   po.ModifierId,
 		ModifierName: po.ModifierName,
-		GmtCreate:    po.GmtCreate,
-		GmtModified:  po.GmtModified,
+		CreatedAt:    po.GmtCreate,
+		UpdatedAt:    po.GmtModified,
 	}
 }
 
 func toPo(region *domain.Region) *RegionPo {
 	return &RegionPo{
-		Id:           region.Id,
-		Pid:          region.Pid,
+		Id:           region.ID,
+		Pid:          region.ParentID,
 		Level:        region.Level,
 		AreaCode:     region.AreaCode,
 		ZipCode:      region.ZipCode,
@@ -42,11 +42,11 @@ func toPo(region *domain.Region) *RegionPo {
 		Lng:          region.Lng,
 		Lat:          region.Lat,
 		Status:       region.Status,
-		CreatorId:    region.CreatorId,
+		CreatorId:    region.CreatorID,
 		CreatorName:  region.CreatorName,
-		ModifierId:   region.ModifierId,
+		ModifierId:   region.ModifierID,
 		ModifierName: region.ModifierName,
-		GmtCreate:    region.GmtCreate,
-		GmtModified:  region.GmtModified,
+		GmtCreate:    region.CreatedAt,
+		GmtModified:  region.UpdatedAt,
 	}
 }
