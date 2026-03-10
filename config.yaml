@@ -13,6 +13,6 @@ mysql:
   port: 3306
   user: "root"
   password: "root"
-  dbname: "bluebell"
+  dbname: "oomall"
   max_open_conns: 200
   max_idle_conns: 50
