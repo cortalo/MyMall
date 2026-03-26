@@ -59,3 +59,19 @@ jobs:
           docker build -t $IMAGE_URI:${{ github.sha }} -t $IMAGE_URI:latest .
           docker push $IMAGE_URI:${{ github.sha }}
           docker push $IMAGE_URI:latest
+
+      - name: 更新 Task Definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-def.json
+          container-name: app
+          image: 288639564595.dkr.ecr.eu-central-1.amazonaws.com/mymall:${{ github.sha }}
+
+      - name: 部署到 ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: mymall-service
+          cluster: mymall-cluster
+          wait-for-service-stability: true

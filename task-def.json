@@ -1,0 +1,56 @@
+{
+  "family": "mymall-task",
+  "executionRoleArn": "arn:aws:iam::288639564595:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "containerDefinitions": [
+    {
+      "name": "mysql",
+      "image": "mysql:8.0",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3306,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "MYSQL_DATABASE",
+          "value": "oomall"
+        },
+        {
+          "name": "MYSQL_ROOT_PASSWORD",
+          "value": "root"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/mymall-task",
+          "awslogs-create-group": "true",
+          "awslogs-region": "eu-central-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    },
+    {
+      "name": "app",
+      "image": "288639564595.dkr.ecr.eu-central-1.amazonaws.com/mymall:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8081,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": []
+    }
+  ]
+}

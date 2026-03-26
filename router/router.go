@@ -16,6 +16,9 @@ func Setup() *gin.Engine {
 		v1.GET("/hello", func(c *gin.Context) {
 			c.JSON(200, gin.H{"hello": "world"})
 		})
+		v1.GET("/hellocd", func(c *gin.Context) {
+			c.JSON(200, gin.H{"hello": "cd"})
+		})
 	}
 
 	return r
