@@ -37,7 +37,7 @@ func TestRegionRepoSQL_FindById(t *testing.T) {
 
 	// Insert
 	regionPo := infra.RegionPo{
-		Pid:          -1,
+		ParentID:     -1,
 		Level:        1,
 		AreaCode:     "100000",
 		ZipCode:      "100000",
@@ -49,12 +49,12 @@ func TestRegionRepoSQL_FindById(t *testing.T) {
 		Lng:          116.4074,
 		Lat:          39.9042,
 		Status:       0,
-		CreatorId:    1,
+		CreatorID:    1,
 		CreatorName:  "admin",
-		ModifierId:   1,
+		ModifierID:   1,
 		ModifierName: "admin",
-		GmtCreate:    time.Now(),
-		GmtModified:  time.Now(),
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 	result, err := db.NamedExec(`
 		INSERT INTO region_region 

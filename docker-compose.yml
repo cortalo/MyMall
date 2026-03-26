@@ -1,0 +1,28 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: oomall        # 自动创建数据库
+    volumes:
+      - mysql_data:/var/lib/mysql   # 数据持久化到 Volume
+    ports:
+      - "3306:3306"                 # 可选，方便你用本地工具连进去看数据
+    healthcheck:                    # 等 mysql 真正就绪再启动 app
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .                        # 用当前目录的 Dockerfile 构建
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./config.docker.yaml:/app/config.yaml   # 把 docker 专用配置挂进去
+    depends_on:
+      mysql:
+        condition: service_healthy  # 等 mysql healthy 才启动
+
+volumes:
+  mysql_data:                       # 声明具名 Volume

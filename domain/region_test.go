@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRegion(status RegionStatus) *Region {
+func newTestRegion(status int8) *Region {
 	return &Region{
 		ID:       1,
 		ParentID: -1,

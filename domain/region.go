@@ -6,15 +6,13 @@ import (
 	"time"
 )
 
-type RegionStatus int8
-
 const (
-	RegionStatusValid RegionStatus = iota
+	RegionStatusValid int8 = iota
 	RegionStatusSuspended
 	RegionStatusAbandoned
 )
 
-var regionAllowedTransitions = map[RegionStatus][]RegionStatus{
+var regionAllowedTransitions = map[int8][]int8{
 	RegionStatusValid:     {RegionStatusSuspended, RegionStatusAbandoned},
 	RegionStatusSuspended: {RegionStatusValid, RegionStatusAbandoned},
 }
@@ -38,7 +36,7 @@ type Region struct {
 	Pinyin       string
 	Lng          float64
 	Lat          float64
-	Status       RegionStatus
+	Status       int8
 }
 
 func (r *Region) abandon() error {
@@ -57,11 +55,11 @@ func (r *Region) createSubRegion(region *Region, operator shared.Operator) (*Reg
 	return region, nil
 }
 
-func (r *Region) allowTransitionTo(status RegionStatus) bool {
+func (r *Region) allowTransitionTo(status int8) bool {
 	return slices.Contains(regionAllowedTransitions[r.Status], status)
 }
 
-func (r *Region) changeStatus(status RegionStatus, operator shared.Operator) (*Region, error) {
+func (r *Region) changeStatus(status int8, operator shared.Operator) (*Region, error) {
 	if !r.allowTransitionTo(status) {
 		return nil, ErrRegionNotAllowedStatus
 	}
