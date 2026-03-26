@@ -20,5 +20,6 @@ WORKDIR /app
 
 # 只从构建阶段拷贝编译好的二进制文件
 COPY --from=builder /app/main .
+COPY config.yaml .
 
 CMD ["./main"]
