@@ -42,36 +42,36 @@ jobs:
       - name: 构建验证
         run: go build ./...
 
-      - name: 配置 AWS 凭证
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
-
-      - name: 登录 ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: 构建并推送镜像
-        run: |
-          IMAGE_URI=288639564595.dkr.ecr.eu-central-1.amazonaws.com/mymall
-          docker build -t $IMAGE_URI:${{ github.sha }} -t $IMAGE_URI:latest .
-          docker push $IMAGE_URI:${{ github.sha }}
-          docker push $IMAGE_URI:latest
-
-      - name: 更新 Task Definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: task-def.json
-          container-name: app
-          image: 288639564595.dkr.ecr.eu-central-1.amazonaws.com/mymall:${{ github.sha }}
-
-      - name: 部署到 ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: mymall-service
-          cluster: mymall-cluster
-          wait-for-service-stability: true
+#      - name: 配置 AWS 凭证
+#        uses: aws-actions/configure-aws-credentials@v4
+#        with:
+#          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#          aws-region: eu-central-1
+#
+#      - name: 登录 ECR
+#        id: login-ecr
+#        uses: aws-actions/amazon-ecr-login@v2
+#
+#      - name: 构建并推送镜像
+#        run: |
+#          IMAGE_URI=288639564595.dkr.ecr.eu-central-1.amazonaws.com/mymall
+#          docker build -t $IMAGE_URI:${{ github.sha }} -t $IMAGE_URI:latest .
+#          docker push $IMAGE_URI:${{ github.sha }}
+#          docker push $IMAGE_URI:latest
+#
+#      - name: 更新 Task Definition
+#        id: task-def
+#        uses: aws-actions/amazon-ecs-render-task-definition@v1
+#        with:
+#          task-definition: task-def.json
+#          container-name: app
+#          image: 288639564595.dkr.ecr.eu-central-1.amazonaws.com/mymall:${{ github.sha }}
+#
+#      - name: 部署到 ECS
+#        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+#        with:
+#          task-definition: ${{ steps.task-def.outputs.task-definition }}
+#          service: mymall-service
+#          cluster: mymall-cluster
+#          wait-for-service-stability: true
