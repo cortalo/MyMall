@@ -104,3 +104,34 @@ func TestOrderService_CreateOrder_IdempotentRetry(t *testing.T) {
 	require.Equal(t, int64(99), order.ID)
 	require.Equal(t, int64(42), order.CustomerID)
 }
+
+func TestOrderService_CreateOrder_EventContainsOrderID(t *testing.T) {
+	repo := &mockOrderRepository{
+		save: func(ctx context.Context, order *domain.Order, idempotencyKey string) error {
+			// 模拟数据库 save 之后给 order 赋予 ID
+			order.ID = 42
+			return nil
+		},
+	}
+
+	var publishedEvent domain.Event
+	publisher := &mockEventPublisher{
+		publish: func(ctx context.Context, event domain.Event) error {
+			publishedEvent = event
+			return nil
+		},
+	}
+	service := NewOrderService(repo, publisher)
+
+	operator := shared.Operator{ID: 1, Username: "test_user"}
+	inputs := []domain.OrderItemInput{
+		{ProductID: 1, ProductName: "Apple", UnitPrice: 500, Quantity: 2},
+	}
+
+	_, err := service.CreateOrder(context.Background(), 42, inputs, operator, "random-key-72")
+
+	require.NoError(t, err)
+	createdEvent, ok := publishedEvent.(domain.OrderCreatedEvent)
+	require.True(t, ok, "event should be OrderCreatedEvent")
+	require.Equal(t, int64(42), createdEvent.OrderID, "event should contain the order ID assigned after save")
+}

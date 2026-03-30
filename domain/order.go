@@ -9,17 +9,17 @@ import (
 
 const (
 	OrderStatusPending int8 = iota
-	OrderStatusPaid
-	OrderStatusShipped
-	OrderStatusDelivered
-	OrderStatusCancelled
+	//OrderStatusPaid
+	//OrderStatusShipped
+	//OrderStatusDelivered
+	//OrderStatusCancelled
 )
 
-var orderAllowedTransitions = map[int8][]int8{
-	OrderStatusPending: {OrderStatusPaid, OrderStatusCancelled},
-	OrderStatusPaid:    {OrderStatusShipped, OrderStatusCancelled},
-	OrderStatusShipped: {OrderStatusDelivered},
-}
+//var orderAllowedTransitions = map[int8][]int8{
+//	OrderStatusPending: {OrderStatusPaid, OrderStatusCancelled},
+//	OrderStatusPaid:    {OrderStatusShipped, OrderStatusCancelled},
+//	OrderStatusShipped: {OrderStatusDelivered},
+//}
 
 type OrderItemInput struct {
 	ProductID   int64
@@ -42,15 +42,15 @@ type Order struct {
 	Items        []*OrderItem
 }
 
-func CreateOrder(customerID int64, inputs []OrderItemInput, operator shared.Operator) (*Order, []Event, error) {
+func CreateOrder(customerID int64, inputs []OrderItemInput, operator shared.Operator) (*Order, error) {
 	if len(inputs) == 0 {
-		return nil, nil, ErrOrderEmptyItems
+		return nil, ErrOrderEmptyItems
 	}
 	items, err := lo.MapErr(inputs, func(input OrderItemInput, _ int) (*OrderItem, error) {
 		return newOrderItem(input.ProductID, input.ProductName, input.UnitPrice, input.Quantity)
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	totalAmount := lo.SumBy(items, func(item *OrderItem) int64 {
 		return item.Subtotal
@@ -64,8 +64,11 @@ func CreateOrder(customerID int64, inputs []OrderItemInput, operator shared.Oper
 		Items:       items,
 	}
 
-	events := []Event{
-		OrderCreatedEvent{OrderID: order.ID, Items: items, CreatedAt: time.Now()},
+	return order, nil
+}
+
+func (o *Order) BuildEvents() []OrderCreatedEvent {
+	return []OrderCreatedEvent{
+		{OrderID: o.ID, Items: o.Items, CreatedAt: time.Now()},
 	}
-	return order, events, nil
 }

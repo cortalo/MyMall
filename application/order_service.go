@@ -38,7 +38,7 @@ func (s *orderService) CreateOrder(
 	operator shared.Operator,
 	idempotencyKey string,
 ) (*domain.Order, error) {
-	order, events, err := domain.CreateOrder(customerID, inputs, operator)
+	order, err := domain.CreateOrder(customerID, inputs, operator)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (s *orderService) CreateOrder(
 		return nil, err
 	}
 
-	for _, event := range events {
+	for _, event := range order.BuildEvents() {
 		if err := s.publisher.Publish(ctx, event); err != nil {
 			return nil, err
 		}
