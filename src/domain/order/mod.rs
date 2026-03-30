@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use thiserror::Error;
-use crate::domain::event::{Event, OrderCreatedEvent};
+use crate::domain::event::{Event, OrderCreatedEvent, OrderItemSnapshot};
 use crate::domain::shared::Operator;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -107,6 +107,10 @@ impl Order {
         let events = vec![Event::OrderCreated(OrderCreatedEvent {
             order_id:   order.id,
             created_at: now,
+            items: order.items.iter().map(|i| OrderItemSnapshot {
+                product_id: i.product_id,
+                quantity: i.quantity,
+            }).collect(),
         })];
 
         Ok((order, events))

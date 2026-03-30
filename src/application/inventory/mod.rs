@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use std::sync::Arc;
-
+use crate::domain::event::OrderCreatedEvent;
 use crate::domain::inventory::{Inventory, InventoryError};
 
 // ── Repository Port ───────────────────────────────────────────────────────────
@@ -16,6 +16,7 @@ pub trait InventoryRepository: Send + Sync {
 #[async_trait]
 pub trait InventoryService: Send + Sync {
     async fn deduct_stock(&self, product_id: i64, quantity: i64) -> Result<(), InventoryError>;
+    async fn handle_order_created(&self, event: OrderCreatedEvent) -> Result<(), InventoryError>;
 }
 
 // ── Service 实现 ──────────────────────────────────────────────────────────────
@@ -38,6 +39,13 @@ impl InventoryService for InventoryServiceImpl {
         self.repo.save(&inventory).await?;
         Ok(())
     }
+
+    async fn handle_order_created(&self, event: OrderCreatedEvent) -> Result<(), InventoryError> {
+        for item in event.items {
+            self.deduct_stock(item.product_id, item.quantity as i64).await?;
+        }
+        Ok(())
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -48,7 +56,8 @@ mod tests {
     use crate::domain::inventory::{Inventory, InventoryError};
     use async_trait::async_trait;
     use std::sync::Arc;
-
+    use chrono::Utc;
+    use crate::domain::event::OrderItemSnapshot;
     // ── Mock ──────────────────────────────────────────────────────────────────
 
     struct MockInventoryRepository {
@@ -85,6 +94,17 @@ mod tests {
         }
 
     }
+
+    fn make_order_created_event(items: Vec<(i64, u32)>) -> OrderCreatedEvent {
+        OrderCreatedEvent {
+            order_id:   1,
+            created_at: Utc::now(),
+            items:      items.into_iter()
+                .map(|(product_id, quantity)| OrderItemSnapshot { product_id, quantity })
+                .collect(),
+        }
+    }
+
 
     // ── Tests ─────────────────────────────────────────────────────────────────
 
@@ -132,5 +152,52 @@ mod tests {
             requested:  5,
             available:  2,
         });
+    }
+
+    #[tokio::test]
+    async fn handle_order_created_deducts_stock_for_all_items() {
+        let calls = Arc::new(std::sync::Mutex::new(vec![]));
+        let calls_clone = calls.clone();
+
+        let repo = MockInventoryRepository::new()
+            .with_find_by_product_id(|product_id| Ok(Inventory::new(product_id, 100)))
+            .with_save(move |inventory| {
+                calls_clone.lock().unwrap().push((inventory.product_id, inventory.quantity));
+                Ok(())
+            });
+
+        let service = InventoryServiceImpl::new(Arc::new(repo));
+        service.handle_order_created(make_order_created_event(vec![(1, 3), (2, 5)])).await.unwrap();
+
+        let calls = calls.lock().unwrap();
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0], (1, 97)); // 100 - 3
+        assert_eq!(calls[1], (2, 95)); // 100 - 5
+    }
+
+    #[tokio::test]
+    async fn handle_order_created_stops_on_first_failure() {
+        let call_count = Arc::new(std::sync::Mutex::new(0));
+        let call_count_clone = call_count.clone();
+
+        let repo = MockInventoryRepository::new()
+            .with_find_by_product_id(move |product_id| {
+                *call_count_clone.lock().unwrap() += 1;
+                if product_id == 2 {
+                    Ok(Inventory::new(2, 0)) // 库存不足
+                } else {
+                    Ok(Inventory::new(product_id, 100))
+                }
+            })
+            .with_save(|_| Ok(()));
+
+        let service = InventoryServiceImpl::new(Arc::new(repo));
+        let err = service
+            .handle_order_created(make_order_created_event(vec![(1, 3), (2, 5), (3, 1)]))
+            .await
+            .unwrap_err();
+
+        assert_eq!(*call_count.lock().unwrap(), 2); // product 3 没有被处理
+        assert!(matches!(err, InventoryError::InsufficientStock { product_id: 2, .. }));
     }
 }
