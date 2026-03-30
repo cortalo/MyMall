@@ -8,3 +8,5 @@ var ErrOrderItemInvalidQuantity = errors.New("order item: quantity must be great
 var ErrOrderItemInvalidPrice = errors.New("order item: unit price must be greater than zero")
 var ErrOrderEmptyItems = errors.New("order: must contain at least one item")
 var ErrDuplicateIdempotencyKey = errors.New("idempotency key already exists")
+var ErrInsufficientStock = errors.New("inventory: insufficient stock")
+var ErrInvalidDeductQuantity = errors.New("inventory: deduct quantity must be greater than zero")

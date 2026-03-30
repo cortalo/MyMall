@@ -18,17 +18,27 @@ type OrderRepository interface {
 	FindByIdempotencyKey(ctx context.Context, idempotencyKey string) (*domain.Order, error)
 }
 
+type EventPublisher interface {
+	Publish(ctx context.Context, event domain.Event) error
+}
+
 type orderService struct {
-	repo OrderRepository
+	repo      OrderRepository
+	publisher EventPublisher
 }
 
-func NewOrderService(repo OrderRepository) OrderService {
-	return &orderService{repo: repo}
+func NewOrderService(repo OrderRepository, publisher EventPublisher) OrderService {
+	return &orderService{repo: repo, publisher: publisher}
 }
 
-func (s *orderService) CreateOrder(ctx context.Context, customerID int64, inputs []domain.OrderItemInput,
-	operator shared.Operator, idempotencyKey string) (*domain.Order, error) {
-	order, _, err := domain.CreateOrder(customerID, inputs, operator)
+func (s *orderService) CreateOrder(
+	ctx context.Context,
+	customerID int64,
+	inputs []domain.OrderItemInput,
+	operator shared.Operator,
+	idempotencyKey string,
+) (*domain.Order, error) {
+	order, events, err := domain.CreateOrder(customerID, inputs, operator)
 	if err != nil {
 		return nil, err
 	}
@@ -37,6 +47,12 @@ func (s *orderService) CreateOrder(ctx context.Context, customerID int64, inputs
 			return s.repo.FindByIdempotencyKey(ctx, idempotencyKey)
 		}
 		return nil, err
+	}
+
+	for _, event := range events {
+		if err := s.publisher.Publish(ctx, event); err != nil {
+			return nil, err
+		}
 	}
 	return order, nil
 }

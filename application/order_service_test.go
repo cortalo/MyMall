@@ -28,6 +28,15 @@ func (m *mockOrderRepository) FindByIdempotencyKey(ctx context.Context, idempote
 	return m.findByIdempotencyKey(ctx, idempotencyKey)
 }
 
+// mock bean
+type mockEventPublisher struct {
+	publish func(ctx context.Context, event domain.Event) error
+}
+
+func (m *mockEventPublisher) Publish(ctx context.Context, event domain.Event) error {
+	return m.publish(ctx, event)
+}
+
 func TestOrderService_CreateOrder(t *testing.T) {
 	repo := &mockOrderRepository{
 		save: func(ctx context.Context, order *domain.Order, idempotencyKey string) error {
@@ -35,7 +44,12 @@ func TestOrderService_CreateOrder(t *testing.T) {
 			return nil
 		},
 	}
-	service := NewOrderService(repo)
+	publisher := &mockEventPublisher{
+		publish: func(ctx context.Context, event domain.Event) error {
+			return nil
+		},
+	}
+	service := NewOrderService(repo, publisher)
 
 	operator := shared.Operator{ID: 1, Username: "test_user"}
 	inputs := []domain.OrderItemInput{
@@ -71,7 +85,12 @@ func TestOrderService_CreateOrder_IdempotentRetry(t *testing.T) {
 			return existingOrder, nil
 		},
 	}
-	service := NewOrderService(repo)
+	publisher := &mockEventPublisher{
+		publish: func(ctx context.Context, event domain.Event) error {
+			return nil
+		},
+	}
+	service := NewOrderService(repo, publisher)
 
 	operator := shared.Operator{ID: 1, Username: "test_user"}
 	inputs := []domain.OrderItemInput{

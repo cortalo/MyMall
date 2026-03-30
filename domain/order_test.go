@@ -27,6 +27,9 @@ func TestCreateOrder(t *testing.T) {
 	require.Equal(t, 2, len(order.Items))
 	require.Equal(t, 1, len(events))
 	require.Equal(t, "order.created", events[0].EventName())
+	createdEvent, ok := events[0].(OrderCreatedEvent)
+	require.True(t, ok, "event is not OrderCreatedEvent")
+	require.Equal(t, 2, len(createdEvent.Items))
 }
 
 func TestCreateOrder_ErrOrderEmptyItems(t *testing.T) {

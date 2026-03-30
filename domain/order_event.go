@@ -4,6 +4,7 @@ import "time"
 
 type OrderCreatedEvent struct {
 	OrderID   int64
+	Items     []*OrderItem
 	CreatedAt time.Time
 }
 

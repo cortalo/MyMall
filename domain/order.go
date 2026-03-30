@@ -65,7 +65,7 @@ func CreateOrder(customerID int64, inputs []OrderItemInput, operator shared.Oper
 	}
 
 	events := []Event{
-		OrderCreatedEvent{OrderID: order.ID, CreatedAt: time.Now()},
+		OrderCreatedEvent{OrderID: order.ID, Items: items, CreatedAt: time.Now()},
 	}
 	return order, events, nil
 }
