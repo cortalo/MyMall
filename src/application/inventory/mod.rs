@@ -1,7 +1,10 @@
 use async_trait::async_trait;
 use std::sync::Arc;
+use crate::application::shared::{ProcessedEventError, ProcessedEventRepository};
 use crate::domain::event::OrderCreatedEvent;
 use crate::domain::inventory::{Inventory, InventoryError};
+
+const ORDER_CREATED_EVENT_TYPE: &str = "order.created";
 
 // ── Repository Port ───────────────────────────────────────────────────────────
 
@@ -23,11 +26,15 @@ pub trait InventoryService: Send + Sync {
 
 pub struct InventoryServiceImpl {
     repo: Arc<dyn InventoryRepository>,
+    processed_event_repo:   Arc<dyn ProcessedEventRepository>,
 }
 
 impl InventoryServiceImpl {
-    pub fn new(repo: Arc<dyn InventoryRepository>) -> Self {
-        Self { repo }
+    pub fn new(
+        repo: Arc<dyn InventoryRepository>,
+        processed_event_repo: Arc<dyn ProcessedEventRepository>,
+    ) -> Self {
+        Self { repo, processed_event_repo }
     }
 }
 
@@ -41,9 +48,23 @@ impl InventoryService for InventoryServiceImpl {
     }
 
     async fn handle_order_created(&self, event: OrderCreatedEvent) -> Result<(), InventoryError> {
+        let already_processed = self.processed_event_repo
+            .is_processed(ORDER_CREATED_EVENT_TYPE, event.order_id)
+            .await
+            .map_err(|e| InventoryError::EventStorageError(e.to_string()))?;
+        if already_processed {
+            return Ok(());
+        }
+
         for item in event.items {
             self.deduct_stock(item.product_id, item.quantity as i64).await?;
         }
+
+        self.processed_event_repo
+            .mark_as_processed(ORDER_CREATED_EVENT_TYPE, event.order_id)
+            .await
+            .map_err(|e| InventoryError::EventStorageError(e.to_string()))?;
+
         Ok(())
     }
 }
@@ -95,14 +116,56 @@ mod tests {
 
     }
 
-    fn make_order_created_event(items: Vec<(i64, u32)>) -> OrderCreatedEvent {
+    // ── Mock ProcessedEventRepository ─────────────────────────────────────────
+
+    struct MockProcessedEventRepository {
+        is_processed_fn:    Box<dyn Fn(&str, i64) -> Result<bool, ProcessedEventError> + Send + Sync>,
+        mark_processed_fn:  Box<dyn Fn(&str, i64) -> Result<(), ProcessedEventError> + Send + Sync>,
+    }
+
+    impl MockProcessedEventRepository {
+        fn new() -> Self {
+            Self {
+                is_processed_fn:   Box::new(|_, _| Ok(false)),
+                mark_processed_fn: Box::new(|_, _| Ok(())),
+            }
+        }
+
+        fn with_is_processed(mut self, f: impl Fn(&str, i64) -> Result<bool, ProcessedEventError> + Send + Sync + 'static) -> Self {
+            self.is_processed_fn = Box::new(f);
+            self
+        }
+        fn with_mark_processed(mut self, f: impl Fn(&str, i64) -> Result<(), ProcessedEventError> + Send + Sync + 'static) -> Self {
+            self.mark_processed_fn = Box::new(f);
+            self
+        }
+    }
+
+    #[async_trait]
+    impl ProcessedEventRepository for MockProcessedEventRepository {
+        async fn is_processed(&self, event_type: &str, event_id: i64) -> Result<bool, ProcessedEventError> {
+            (self.is_processed_fn)(event_type, event_id)
+        }
+        async fn mark_as_processed(&self, event_type: &str, event_id: i64) -> Result<(), ProcessedEventError> {
+            (self.mark_processed_fn)(event_type, event_id)
+        }
+    }
+
+    fn make_order_created_event(order_id: i64, items: Vec<(i64, u32)>) -> OrderCreatedEvent {
         OrderCreatedEvent {
-            order_id:   1,
+            order_id,
             created_at: Utc::now(),
             items:      items.into_iter()
                 .map(|(product_id, quantity)| OrderItemSnapshot { product_id, quantity })
                 .collect(),
         }
+    }
+
+    fn make_service(
+        repo: MockInventoryRepository,
+        processed_repo: MockProcessedEventRepository,
+    ) -> InventoryServiceImpl {
+        InventoryServiceImpl::new(Arc::new(repo), Arc::new(processed_repo))
     }
 
 
@@ -121,7 +184,7 @@ mod tests {
                 Ok(())
             });
 
-        let service = InventoryServiceImpl::new(Arc::new(repo));
+        let service = make_service(repo, MockProcessedEventRepository::new());
         service.deduct_stock(1, 3).await?;
 
         Ok(())
@@ -132,7 +195,7 @@ mod tests {
         let repo = MockInventoryRepository::new()
             .with_find_by_product_id(|product_id| Err(InventoryError::NotFound(product_id)));
 
-        let service = InventoryServiceImpl::new(Arc::new(repo));
+        let service = make_service(repo, MockProcessedEventRepository::new());
         let err = service.deduct_stock(1, 3).await.unwrap_err();
 
         assert_eq!(err, InventoryError::NotFound(1));
@@ -144,7 +207,7 @@ mod tests {
             .with_find_by_product_id(|_| Ok(Inventory::new(1, 2)))
             .with_save(|_| panic!("save should not be called when deduct fails"));
 
-        let service = InventoryServiceImpl::new(Arc::new(repo));
+        let service = make_service(repo, MockProcessedEventRepository::new());
         let err = service.deduct_stock(1, 5).await.unwrap_err();
 
         assert_eq!(err, InventoryError::InsufficientStock {
@@ -166,8 +229,8 @@ mod tests {
                 Ok(())
             });
 
-        let service = InventoryServiceImpl::new(Arc::new(repo));
-        service.handle_order_created(make_order_created_event(vec![(1, 3), (2, 5)])).await.unwrap();
+        let service = make_service(repo, MockProcessedEventRepository::new());
+        service.handle_order_created(make_order_created_event(1, vec![(1, 3), (2, 5)])).await.unwrap();
 
         let calls = calls.lock().unwrap();
         assert_eq!(calls.len(), 2);
@@ -191,13 +254,49 @@ mod tests {
             })
             .with_save(|_| Ok(()));
 
-        let service = InventoryServiceImpl::new(Arc::new(repo));
+        let service = make_service(repo, MockProcessedEventRepository::new());
         let err = service
-            .handle_order_created(make_order_created_event(vec![(1, 3), (2, 5), (3, 1)]))
+            .handle_order_created(make_order_created_event(1, vec![(1, 3), (2, 5), (3, 1)]))
             .await
             .unwrap_err();
 
         assert_eq!(*call_count.lock().unwrap(), 2); // product 3 没有被处理
         assert!(matches!(err, InventoryError::InsufficientStock { product_id: 2, .. }));
+    }
+
+    #[tokio::test]
+    async fn handle_order_created_skips_if_already_processed() {
+        let repo = MockInventoryRepository::new()
+            .with_find_by_product_id(|_| panic!("should not query inventory for duplicate event"))
+            .with_save(|_| panic!("should not save inventory for duplicate event"));
+
+        let processed_repo = MockProcessedEventRepository::new()
+            .with_is_processed(|_, _| Ok(true)); // 已经处理过
+
+        let service = make_service(repo, processed_repo);
+        service.handle_order_created(make_order_created_event(1, vec![(1, 3)])).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn handle_order_created_marks_event_as_processed() {
+        let marked = Arc::new(std::sync::Mutex::new(vec![]));
+        let marked_clone = marked.clone();
+
+        let repo = MockInventoryRepository::new()
+            .with_find_by_product_id(|product_id| Ok(Inventory::new(product_id, 100)))
+            .with_save(|_| Ok(()));
+
+        let processed_repo = MockProcessedEventRepository::new()
+            .with_mark_processed(move |event_type, event_id| {
+                marked_clone.lock().unwrap().push((event_type.to_string(), event_id));
+                Ok(())
+            });
+
+        let service = make_service(repo, processed_repo);
+        service.handle_order_created(make_order_created_event(42, vec![(1, 3)])).await.unwrap();
+
+        let marked = marked.lock().unwrap();
+        assert_eq!(marked.len(), 1);
+        assert_eq!(marked[0], (ORDER_CREATED_EVENT_TYPE.to_string(), 42));
     }
 }

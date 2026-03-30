@@ -12,6 +12,8 @@ pub enum InventoryError {
     },
     #[error("inventory not found for product {0}")]
     NotFound(i64),
+    #[error("event storage error: {0}")]
+    EventStorageError(String),
 }
 
 // ── Aggregate Root ────────────────────────────────────────────────────────────
