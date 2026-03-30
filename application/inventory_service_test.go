@@ -48,6 +48,32 @@ func newMockInventoryRepository(t *testing.T) *mockInventoryRepository {
 	}
 }
 
+type mockProcessedEventRepository struct {
+	isProcessed   func(ctx context.Context, eventName string, uniqueKey string) (bool, error)
+	markProcessed func(ctx context.Context, eventName string, uniqueKey string) error
+}
+
+func (m *mockProcessedEventRepository) IsProcessed(ctx context.Context, eventName string, uniqueKey string) (bool, error) {
+	return m.isProcessed(ctx, eventName, uniqueKey)
+}
+
+func (m *mockProcessedEventRepository) MarkProcessed(ctx context.Context, eventName string, uniqueKey string) error {
+	return m.markProcessed(ctx, eventName, uniqueKey)
+}
+
+func newMockProcessedEventRepository(t *testing.T) *mockProcessedEventRepository {
+	return &mockProcessedEventRepository{
+		isProcessed: func(ctx context.Context, eventName string, uniqueKey string) (bool, error) {
+			t.Fatal("isProcessed should not be called")
+			return false, nil
+		},
+		markProcessed: func(ctx context.Context, eventName string, uniqueKey string) error {
+			t.Fatal("markProcessed should not be called")
+			return nil
+		},
+	}
+}
+
 func TestInventoryService_HandleOrderCreated(t *testing.T) {
 	// 用 map 模拟数据库中的库存数据
 	inventoryStore := map[int64]*domain.Inventory{
@@ -62,7 +88,14 @@ func TestInventoryService_HandleOrderCreated(t *testing.T) {
 		inv.Stock -= amount
 		return nil
 	}
-	service := NewInventoryService(repo)
+	processedEventRepo := newMockProcessedEventRepository(t)
+	processedEventRepo.isProcessed = func(ctx context.Context, eventName string, uniqueKey string) (bool, error) {
+		return false, nil
+	}
+	processedEventRepo.markProcessed = func(ctx context.Context, eventName string, uniqueKey string) error {
+		return nil
+	}
+	service := NewInventoryService(repo, processedEventRepo)
 
 	event := domain.OrderCreatedEvent{
 		OrderID: 1,
@@ -82,7 +115,14 @@ func TestInventoryService_HandleOrderCreated(t *testing.T) {
 
 func TestInventoryService_HandleOrderCreated_EmptyItems(t *testing.T) {
 	repo := newMockInventoryRepository(t)
-	service := NewInventoryService(repo)
+	processedEventRepo := newMockProcessedEventRepository(t)
+	processedEventRepo.isProcessed = func(ctx context.Context, eventName string, uniqueKey string) (bool, error) {
+		return false, nil
+	}
+	processedEventRepo.markProcessed = func(ctx context.Context, eventName string, uniqueKey string) error {
+		return nil
+	}
+	service := NewInventoryService(repo, processedEventRepo)
 
 	event := domain.OrderCreatedEvent{
 		OrderID: 1,
@@ -100,7 +140,14 @@ func TestInventoryService_HandleOrderCreated_InsufficientStock(t *testing.T) {
 		return domain.ErrInsufficientStock
 	}
 
-	service := NewInventoryService(repo)
+	processedEventRepo := newMockProcessedEventRepository(t)
+	processedEventRepo.isProcessed = func(ctx context.Context, eventName string, uniqueKey string) (bool, error) {
+		return false, nil
+	}
+	processedEventRepo.markProcessed = func(ctx context.Context, eventName string, uniqueKey string) error {
+		return nil
+	}
+	service := NewInventoryService(repo, processedEventRepo)
 
 	event := domain.OrderCreatedEvent{
 		OrderID: 1,
@@ -133,7 +180,14 @@ func TestInventoryService_HandleOrderCreated_PartialFailure(t *testing.T) {
 		return nil
 	}
 
-	service := NewInventoryService(repo)
+	processedEventRepo := newMockProcessedEventRepository(t)
+	processedEventRepo.isProcessed = func(ctx context.Context, eventName string, uniqueKey string) (bool, error) {
+		return false, nil
+	}
+	processedEventRepo.markProcessed = func(ctx context.Context, eventName string, uniqueKey string) error {
+		return nil
+	}
+	service := NewInventoryService(repo, processedEventRepo)
 
 	event := domain.OrderCreatedEvent{
 		OrderID: 1,
@@ -146,4 +200,96 @@ func TestInventoryService_HandleOrderCreated_PartialFailure(t *testing.T) {
 	err := service.HandleOrderCreated(context.Background(), event)
 
 	require.ErrorIs(t, err, domain.ErrInsufficientStock)
+}
+
+func TestInventoryService_HandleOrderCreated_Idempotent(t *testing.T) {
+	repo := newMockInventoryRepository(t)
+	repo.deductByProductID = func(ctx context.Context, productID int64, amount int) error {
+		t.Fatal("deductByProductID should not be called for duplicate event")
+		return nil
+	}
+
+	processedEventRepo := &mockProcessedEventRepository{
+		isProcessed: func(ctx context.Context, eventName string, uniqueKey string) (bool, error) {
+			return true, nil // 已经处理过了
+		},
+		markProcessed: func(ctx context.Context, eventName string, uniqueKey string) error {
+			t.Fatal("markProcessed should not be called for duplicate event")
+			return nil
+		},
+	}
+
+	service := NewInventoryService(repo, processedEventRepo)
+
+	event := domain.OrderCreatedEvent{
+		OrderID: 1,
+		Items:   []*domain.OrderItem{{ProductID: 1, Quantity: 3}},
+	}
+
+	err := service.HandleOrderCreated(context.Background(), event)
+
+	require.NoError(t, err)
+}
+
+func TestInventoryService_HandleOrderCreated_MarkProcessedWithinTx(t *testing.T) {
+	var markCalledInTx bool
+
+	repo := newMockInventoryRepository(t)
+	repo.withTx = func(ctx context.Context, fn func(ctx context.Context) error) error {
+		// 执行 fn 之后检查 markProcessed 是否在事务内被调用
+		err := fn(ctx)
+		require.True(t, markCalledInTx, "markProcessed should be called within transaction")
+		return err
+	}
+	repo.deductByProductID = func(ctx context.Context, productID int64, amount int) error {
+		return nil
+	}
+
+	processedEventRepo := &mockProcessedEventRepository{
+		isProcessed: func(ctx context.Context, eventName string, uniqueKey string) (bool, error) {
+			return false, nil
+		},
+		markProcessed: func(ctx context.Context, eventName string, uniqueKey string) error {
+			markCalledInTx = true
+			return nil
+		},
+	}
+
+	service := NewInventoryService(repo, processedEventRepo)
+
+	event := domain.OrderCreatedEvent{
+		OrderID: 1,
+		Items:   []*domain.OrderItem{{ProductID: 1, Quantity: 3}},
+	}
+
+	err := service.HandleOrderCreated(context.Background(), event)
+
+	require.NoError(t, err)
+}
+
+func TestInventoryService_HandleOrderCreated_DuplicateProcessedEvent(t *testing.T) {
+	// 模拟并发下 MarkProcessed 唯一键冲突
+	repo := newMockInventoryRepository(t)
+	repo.deductByProductID = func(ctx context.Context, productID int64, amount int) error {
+		return nil
+	}
+
+	processedEventRepo := newMockProcessedEventRepository(t)
+	processedEventRepo.isProcessed = func(ctx context.Context, eventName string, uniqueKey string) (bool, error) {
+		return false, nil
+	}
+	processedEventRepo.markProcessed = func(ctx context.Context, eventName string, uniqueKey string) error {
+		return domain.ErrDuplicateProcessedEvent
+	}
+
+	service := NewInventoryService(repo, processedEventRepo)
+
+	event := domain.OrderCreatedEvent{
+		OrderID: 1,
+		Items:   []*domain.OrderItem{{ProductID: 1, Quantity: 3}},
+	}
+
+	err := service.HandleOrderCreated(context.Background(), event)
+
+	require.ErrorIs(t, err, domain.ErrDuplicateProcessedEvent)
 }
