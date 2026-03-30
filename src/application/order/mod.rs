@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use std::sync::Arc;
-
+use crate::application::shared::{EventBus, EventBusError};
 use crate::domain::order::{Order, OrderError, OrderItemInput};
 use crate::domain::shared::Operator;
 
@@ -19,16 +19,27 @@ pub trait OrderService: Send + Sync {
         inputs: Vec<OrderItemInput>,
         operator: Operator,
         idempotency_key: &str,
-    ) -> Result<Order, OrderError>;
+    ) -> Result<Order, OrderApplicationError>;
+}
+
+// ── 统一错误类型 ──────────────────────────────────────────────────────────────
+
+#[derive(Debug, thiserror::Error)]
+pub enum OrderApplicationError {
+    #[error(transparent)]
+    Domain(#[from] OrderError),
+    #[error(transparent)]
+    EventBus(#[from] EventBusError),
 }
 
 pub struct OrderServiceImpl {
     repo: Arc<dyn OrderRepository>,
+    event_bus: Arc<dyn EventBus>,
 }
 
 impl OrderServiceImpl {
-    pub fn new(repo: Arc<dyn OrderRepository>) -> Self {
-        Self { repo }
+    pub fn new(repo: Arc<dyn OrderRepository>, event_bus: Arc<dyn EventBus>) -> Self {
+        Self { repo, event_bus }
     }
 }
 
@@ -40,20 +51,26 @@ impl OrderService for OrderServiceImpl {
         inputs: Vec<OrderItemInput>,
         operator: Operator,
         idempotency_key: &str
-    ) -> Result<Order, OrderError> {
-        let (order, _events) = Order::create(customer_id, inputs, operator)?;
+    ) -> Result<Order, OrderApplicationError> {
+        let (order, events) = Order::create(customer_id, inputs, operator)?;
         match self.repo.save(&order, idempotency_key).await {
-            Ok(_) => Ok(order),
-            Err(OrderError::DuplicateIdempotencyKey) => {
-                self.repo.find_by_idempotency_key(idempotency_key).await
+            Ok(_) => {
+                for event in events {
+                    self.event_bus.publish(event).await?;
+                }
+                Ok(order)
             }
-            Err(e) => Err(e),
+            Err(OrderError::DuplicateIdempotencyKey) => {
+                Ok(self.repo.find_by_idempotency_key(idempotency_key).await?)
+            }
+            Err(e) => Err(e.into()),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::domain::event::Event;
     use crate::domain::order::OrderStatus;
 use super::*;
 
@@ -96,6 +113,30 @@ use super::*;
         }
     }
 
+    struct MockEventBus {
+        publish_fn: Box<dyn Fn(Event) -> Result<(), EventBusError> + Send + Sync>,
+    }
+
+    impl MockEventBus {
+        fn new() -> Self {
+            Self {
+                publish_fn: Box::new(|_| Ok(())), // 默认静默成功
+            }
+        }
+
+        fn with_publish(mut self, f: impl Fn(Event) -> Result<(), EventBusError> + Send + Sync + 'static) -> Self {
+            self.publish_fn = Box::new(f);
+            self
+        }
+    }
+
+    #[async_trait]
+    impl EventBus for MockEventBus {
+        async fn publish(&self, event: Event) -> Result<(), EventBusError> {
+            (self.publish_fn)(event)
+        }
+    }
+
     fn make_operator() -> Operator {
         Operator { id: 1, username: "test_user".to_string() }
     }
@@ -106,14 +147,15 @@ use super::*;
     }
 
     #[tokio::test]
-    async fn create_order_succeeds() -> Result<(), OrderError> {
+    async fn create_order_succeeds() -> Result<(), OrderApplicationError> {
         let repo = MockOrderRepository::new()
             .with_save(|_, idempotency_key| {
                 assert_eq!(idempotency_key, "random-key-72");
                 Ok(())
             });
+        let event_bus = MockEventBus::new();
 
-        let service = OrderServiceImpl::new(Arc::new(repo));
+        let service = OrderServiceImpl::new(Arc::new(repo), Arc::new(event_bus));
 
         let order = service
             .create_order(42, make_inputs(), make_operator(), "random-key-72")
@@ -127,7 +169,7 @@ use super::*;
     }
 
     #[tokio::test]
-    async fn create_order_idempotent_retry() -> Result<(), OrderError> {
+    async fn create_order_idempotent_retry() -> Result<(), OrderApplicationError> {
         let existing_order = Order {
             id: 99,
             customer_id: 42,
@@ -142,8 +184,9 @@ use super::*;
                 assert_eq!(idempotency_key, "idempotency-key-1");
                 Ok(existing_order.clone())
             });
+        let event_bus = MockEventBus::new();
 
-        let service = OrderServiceImpl::new(Arc::new(repo));
+        let service = OrderServiceImpl::new(Arc::new(repo), Arc::new(event_bus));
 
         let order = service
             .create_order(42, make_inputs(), make_operator(), "idempotency-key-1")
@@ -151,6 +194,31 @@ use super::*;
 
         assert_eq!(order.id, 99);
         assert_eq!(order.customer_id, 42);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_order_publishes_order_created_event() -> Result<(), OrderApplicationError> {
+        let published = Arc::new(std::sync::Mutex::new(vec![]));
+        let published_clone = published.clone();
+
+        let event_bus = MockEventBus::new()
+            .with_publish(move |event| {
+                published_clone.lock().unwrap().push(event);
+                Ok(())
+            });
+
+        let service = OrderServiceImpl::new(
+            Arc::new(MockOrderRepository::new().with_save(|_, _| Ok(()))),
+            Arc::new(event_bus),
+        );
+
+        service.create_order(42, make_inputs(), make_operator(), "key-1").await?;
+
+        let events = published.lock().unwrap();
+        assert_eq!(events.len(), 1);
+        assert!(matches!(events[0], Event::OrderCreated(_)));
 
         Ok(())
     }
