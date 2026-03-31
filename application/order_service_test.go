@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// mock bean
 type mockOrderRepository struct {
 	save                 func(ctx context.Context, order *domain.Order, idempotencyKey string) error
 	findByID             func(ctx context.Context, id int64) (*domain.Order, error)
@@ -28,7 +27,52 @@ func (m *mockOrderRepository) FindByIdempotencyKey(ctx context.Context, idempote
 	return m.findByIdempotencyKey(ctx, idempotencyKey)
 }
 
-// mock bean
+type mockOrderUnitOfWork struct {
+	orderRepo OrderRepository
+	commit    func(ctx context.Context) error
+	rollback  func(ctx context.Context) error
+}
+
+func (m *mockOrderUnitOfWork) OrderRepo() OrderRepository {
+	return m.orderRepo
+}
+
+func (m *mockOrderUnitOfWork) Commit(ctx context.Context) error {
+	return m.commit(ctx)
+}
+
+func (m *mockOrderUnitOfWork) Rollback(ctx context.Context) error {
+	return m.rollback(ctx)
+}
+
+type mockOrderUnitOfWorkFactory struct {
+	new func(ctx context.Context) (OrderUnitOfWork, error)
+}
+
+func (m *mockOrderUnitOfWorkFactory) New(ctx context.Context) (OrderUnitOfWork, error) {
+	return m.new(ctx)
+}
+
+func newMockOrderUnitOfWork(t *testing.T, repo OrderRepository) *mockOrderUnitOfWork {
+	return &mockOrderUnitOfWork{
+		orderRepo: repo,
+		commit: func(ctx context.Context) error {
+			return nil
+		},
+		rollback: func(ctx context.Context) error {
+			return nil
+		},
+	}
+}
+
+func newMockOrderUnitOfWorkFactory(t *testing.T, repo OrderRepository) *mockOrderUnitOfWorkFactory {
+	return &mockOrderUnitOfWorkFactory{
+		new: func(ctx context.Context) (OrderUnitOfWork, error) {
+			return newMockOrderUnitOfWork(t, repo), nil
+		},
+	}
+}
+
 type mockEventPublisher struct {
 	publish func(ctx context.Context, event domain.Event) error
 }
@@ -49,7 +93,7 @@ func TestOrderService_CreateOrder(t *testing.T) {
 			return nil
 		},
 	}
-	service := NewOrderService(repo, publisher)
+	service := NewOrderService(newMockOrderUnitOfWorkFactory(t, repo), publisher, &mockLogger{})
 
 	operator := shared.Operator{ID: 1, Username: "test_user"}
 	inputs := []domain.OrderItemInput{
@@ -90,7 +134,7 @@ func TestOrderService_CreateOrder_IdempotentRetry(t *testing.T) {
 			return nil
 		},
 	}
-	service := NewOrderService(repo, publisher)
+	service := NewOrderService(newMockOrderUnitOfWorkFactory(t, repo), publisher, &mockLogger{})
 
 	operator := shared.Operator{ID: 1, Username: "test_user"}
 	inputs := []domain.OrderItemInput{
@@ -108,7 +152,6 @@ func TestOrderService_CreateOrder_IdempotentRetry(t *testing.T) {
 func TestOrderService_CreateOrder_EventContainsOrderID(t *testing.T) {
 	repo := &mockOrderRepository{
 		save: func(ctx context.Context, order *domain.Order, idempotencyKey string) error {
-			// 模拟数据库 save 之后给 order 赋予 ID
 			order.ID = 42
 			return nil
 		},
@@ -121,7 +164,7 @@ func TestOrderService_CreateOrder_EventContainsOrderID(t *testing.T) {
 			return nil
 		},
 	}
-	service := NewOrderService(repo, publisher)
+	service := NewOrderService(newMockOrderUnitOfWorkFactory(t, repo), publisher, &mockLogger{})
 
 	operator := shared.Operator{ID: 1, Username: "test_user"}
 	inputs := []domain.OrderItemInput{

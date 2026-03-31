@@ -19,13 +19,24 @@ type OrderRepository interface {
 	FindByIdempotencyKey(ctx context.Context, idempotencyKey string) (*domain.Order, error)
 }
 
-type orderService struct {
-	repo      OrderRepository
-	publisher appshared.EventPublisher
+type OrderUnitOfWork interface {
+	OrderRepo() OrderRepository
+	Commit(ctx context.Context) error
+	Rollback(ctx context.Context) error
 }
 
-func NewOrderService(repo OrderRepository, publisher appshared.EventPublisher) OrderService {
-	return &orderService{repo: repo, publisher: publisher}
+type OrderUnitOfWorkFactory interface {
+	New(ctx context.Context) (OrderUnitOfWork, error)
+}
+
+type orderService struct {
+	uowFactory OrderUnitOfWorkFactory
+	publisher  appshared.EventPublisher
+	logger     Logger
+}
+
+func NewOrderService(uowFactory OrderUnitOfWorkFactory, publisher appshared.EventPublisher, logger Logger) OrderService {
+	return &orderService{uowFactory: uowFactory, publisher: publisher, logger: logger}
 }
 
 func (s *orderService) CreateOrder(
@@ -39,9 +50,21 @@ func (s *orderService) CreateOrder(
 	if err != nil {
 		return nil, err
 	}
-	if err := s.repo.Save(ctx, order, idempotencyKey); err != nil {
+	uow, err := s.uowFactory.New(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := uow.Rollback(ctx); err != nil {
+			s.logger.Warn(ctx, "rollback failed",
+				F("error", err),
+			)
+		}
+	}()
+
+	if err := uow.OrderRepo().Save(ctx, order, idempotencyKey); err != nil {
 		if errors.Is(err, domain.ErrDuplicateIdempotencyKey) {
-			return s.repo.FindByIdempotencyKey(ctx, idempotencyKey)
+			return uow.OrderRepo().FindByIdempotencyKey(ctx, idempotencyKey)
 		}
 		return nil, err
 	}
@@ -51,5 +74,5 @@ func (s *orderService) CreateOrder(
 			return nil, err
 		}
 	}
-	return order, nil
+	return order, uow.Commit(ctx)
 }

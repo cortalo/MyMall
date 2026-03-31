@@ -4,6 +4,7 @@ import (
 	"MyMall/domain"
 	"MyMall/domain/shared"
 	"context"
+	"errors"
 	"time"
 
 	"github.com/samber/lo"
@@ -24,6 +25,7 @@ type SaleRepository interface {
 }
 
 type OrderReadRepository interface {
+	// CountByUserAndProduct implementation needs FOR UPDATE to avoid write skew
 	CountByUserAndProduct(ctx context.Context, userID int64, productID int64) (int, error)
 	FindByIdempotencyKey(ctx context.Context, idempotencyKey string) (*domain.Order, error)
 }
@@ -57,7 +59,11 @@ func (s *saleService) CreateOrder(
 	operator shared.Operator,
 	idempotencyKey string,
 ) (*domain.Order, error) {
-	if order, err := s.orderReadRepo.FindByIdempotencyKey(ctx, idempotencyKey); err == nil {
+	order, err := s.orderReadRepo.FindByIdempotencyKey(ctx, idempotencyKey)
+	if err != nil && !errors.Is(err, domain.ErrOrderNotFound) {
+		return nil, err
+	}
+	if order != nil {
 		return order, nil
 	}
 	orderItemInputs, err := lo.MapErr(items, func(item domain.SaleOrderItem, _ int) (domain.OrderItemInput, error) {

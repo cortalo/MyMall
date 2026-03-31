@@ -48,7 +48,7 @@ func newMockOrderReadRepository(t *testing.T) *mockOrderReadRepository {
 			return 0, nil
 		},
 		findByIdempotencyKey: func(ctx context.Context, idempotencyKey string) (*domain.Order, error) {
-			return nil, domain.ErrOrderEmptyItems
+			return nil, domain.ErrOrderNotFound
 		},
 	}
 }
@@ -100,7 +100,7 @@ func TestSaleService_CreateOrder_Success(t *testing.T) {
 			return nil
 		},
 	}
-	orderCreator := NewOrderService(orderRepo, publisher)
+	orderCreator := NewOrderService(newMockOrderUnitOfWorkFactory(t, orderRepo), publisher, &mockLogger{})
 
 	service := NewSaleService(saleRepo, orderReadRepo, orderCreator)
 
@@ -115,7 +115,6 @@ func TestSaleService_CreateOrder_Success(t *testing.T) {
 	require.NotNil(t, order)
 	require.Equal(t, int64(500), order.TotalAmount)
 }
-
 func TestSaleService_CreateOrder_SaleNotFound(t *testing.T) {
 	saleRepo := newMockSaleRepository(t)
 	saleRepo.findByID = func(ctx context.Context, id int64) (*domain.Sale, error) {
