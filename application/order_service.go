@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 )
+import appshared "MyMall/application/shared"
 
 type OrderService interface {
 	CreateOrder(ctx context.Context, customerID int64, inputs []domain.OrderItemInput, operator shared.Operator,
@@ -18,16 +19,12 @@ type OrderRepository interface {
 	FindByIdempotencyKey(ctx context.Context, idempotencyKey string) (*domain.Order, error)
 }
 
-type EventPublisher interface {
-	Publish(ctx context.Context, event domain.Event) error
-}
-
 type orderService struct {
 	repo      OrderRepository
-	publisher EventPublisher
+	publisher appshared.EventPublisher
 }
 
-func NewOrderService(repo OrderRepository, publisher EventPublisher) OrderService {
+func NewOrderService(repo OrderRepository, publisher appshared.EventPublisher) OrderService {
 	return &orderService{repo: repo, publisher: publisher}
 }
 
